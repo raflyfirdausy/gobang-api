@@ -13,8 +13,6 @@ class Request extends REST_Controller
         parent::__construct($config);
     }
 
-
-
     function cek_data_post()
     {
         $no_reg_tilang  = $this->input->post('no_reg_tilang');
@@ -35,7 +33,7 @@ class Request extends REST_Controller
                 $cekRequest     = $this->m_data->getData("permintaan_user")->row();
 
                 if ($cekRequest) {
-                    if($cekRequest->waktu_expired > date("Y-m-d H:i:s")){
+                    if ($cekRequest->waktu_expired > date("Y-m-d H:i:s")) {
                         //CEK UDAH BAYAR BELUM - TP DARIMANA YA :V 
                     } else {
                         $this->response(array(
