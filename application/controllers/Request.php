@@ -15,18 +15,13 @@ class Request extends REST_Controller
 
     function cek_data_post()
     {
-        $no_reg_tilang  = $this->input->post('no_reg_tilang');
-        $nama_penerima  = $this->input->post('nama_penerima');
-        $alamat_antar   = $this->input->post('alamat_antar');
-        $detail_alamat  = $this->input->post('detail_alamat');
-        $nomer_hp       = $this->input->post('nomer_hp');
-        $request_by     = $this->input->post('request_by');
-
+        $no_reg_tilang  = $this->input->post('no_reg_tilang');        
+        
         $cekData    = $this->m_data->getWhere("no_reg_tilang", $no_reg_tilang);
-        $cekData    = $this->m_data->getData("daftar_terpidana")->row();
+        $cekData    = $this->m_data->getData("daftar_terpidana")->row();        
 
         if ($cekData) {
-            if ($cekData->sudah_diambil == 0) {
+            if ($cekData->posisi !== "selesai") {
                 $cekRequest     = $this->m_data->getWhere("no_reg_tilang", $cekData->no_reg_tilang);
                 $cekRequest     = $this->m_data->order_by("waktu_expired", "DESC");
                 $cekRequest     = $this->m_data->limitOffset(1, NULL);
@@ -34,14 +29,33 @@ class Request extends REST_Controller
 
                 if ($cekRequest) {
                     if ($cekRequest->waktu_expired > date("Y-m-d H:i:s")) {
-                        //CEK UDAH BAYAR BELUM - TP DARIMANA YA :V 
+                        //CEK UDAH BAYAR BELUM - CEK DI TABLE BB_STATUS - KALO ADA BERARTI DAH BAYAR
+                        $cekBbStatus    = $this->m_data->getWhere("id_permintaan", $cekRequest->id_permintaan);
+                        $cekBbStatus    = $this->m_data->getData("bb_status")->row();
+                        if($cekBbStatus){
+                            //UDAH BAYAR
+                            $this->response(array(
+                                "status"        => true,
+                                "respon_code"   => REST_Controller::HTTP_OK,
+                                "respon_mess"   => "Bukti tilang sedang kami kirim, silahkan lacak pengiriman dengan memasukan nomer resi yang sudah kami masukan",
+                                "data"          => $cekBbStatus
+                            ), REST_Controller::HTTP_OK);
+                        } else {
+                            //BELUM BAYAR
+                            $this->response(array(
+                                "status"        => true,
+                                "respon_code"   => REST_Controller::HTTP_PAYMENT_REQUIRED,
+                                "respon_mess"   => "Silahkan bayar sesuai dengan nominal sebelum batas pembayaran berakhir",
+                                "data"          => $cekRequest
+                            ), REST_Controller::HTTP_PAYMENT_REQUIRED);
+                        }
                     } else {
                         $this->response(array(
                             "status"        => true,
-                            "respon_code"   => REST_Controller::HTTP_FOUND,
+                            "respon_code"   => REST_Controller::HTTP_EXPECTATION_FAILED,
                             "respon_mess"   => "Request expired, silahkan isi ulang data request pengiriman bukti tilang",
                             "data"          => $cekData
-                        ), REST_Controller::HTTP_FOUND);
+                        ), REST_Controller::HTTP_EXPECTATION_FAILED);
                     }
                 } else {
                     // BELUM REQUEST - ISI DATA - PROSES CEK SELESAI
