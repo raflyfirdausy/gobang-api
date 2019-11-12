@@ -210,8 +210,8 @@ class Request extends REST_Controller
                             if($insertBBStatus){
                                 $this->response(array(
                                     "status"        => true,
-                                    "respon_code"   => 00,
-                                    "respon_mess"   => "Gobang|" . $cekVA->no_reg_tilang . "|" . $cekVA->nama_penerima,
+                                    "respon_code"   => "00",
+                                    "respon_mess"   => "Pembayaran Gobang|" . $cekVA->no_reg_tilang . "|" . $cekVA->nama_penerima,
                                     "nomor_va"      => $nomor_va,
                                     "kode_inst"     => $kode_inst,
                                     "channel_id"    => $channel_id,
