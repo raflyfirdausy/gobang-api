@@ -13,6 +13,15 @@ class Request extends REST_Controller
         parent::__construct($config);
     }
 
+    public function tes_koneksi_post(){
+        $this->response(array(
+            "status"        => true,
+            "respon_code"   => REST_Controller::HTTP_OK,
+            "respon_mess"   => "Connected",
+            "data"          => NULL
+        ), REST_Controller::HTTP_OK);
+    }
+
     public function generateVA()
     {
         $no_va     = "";
@@ -164,6 +173,7 @@ class Request extends REST_Controller
         }
     }
 
+    //payment
     public function vasbupos_payment_post()
     {
         $nomor_va       = $this->input->post('nomor_va');
@@ -313,6 +323,7 @@ class Request extends REST_Controller
         }
     }
 
+    //get inquiry
     public function vasbupos_inquiry_post()
     {
         $nomor_va       = $this->input->post('nomor_va');
