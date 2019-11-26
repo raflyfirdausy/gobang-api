@@ -13,7 +13,13 @@ class Request extends REST_Controller
         parent::__construct($config);
     }
 
-    public function tes_koneksi_post(){
+    public function hash_get($nomor_va)
+    {
+        echo base64_encode(gobang()->kode_inst . "#" . "pgm" . "#" . $nomor_va);
+    }
+
+    public function tes_koneksi_post()
+    {
         $this->response(array(
             "status"        => true,
             "respon_code"   => REST_Controller::HTTP_OK,
@@ -53,8 +59,8 @@ class Request extends REST_Controller
         $nominal_gobang     = $this->input->post('nominal_gobang') == NULL ? gobang()->nominal_gobang : $this->input->post('nominal_gobang');
         $waktu_expired      = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s") . " +1 days"));
 
-        $cekData    = $this->m_data->getWhere("no_reg_tilang", $no_reg_tilang);
-        $cekData    = $this->m_data->getData("daftar_terpidana")->row();
+        $cekData            = $this->m_data->getWhere("LOWER(no_reg_tilang)", strtolower($no_reg_tilang));
+        $cekData            = $this->m_data->getData("daftar_terpidana")->row();
 
         if ($cekData) {
             //INSERT
@@ -79,19 +85,22 @@ class Request extends REST_Controller
                 $ambilDataTerakhir     = $this->m_data->order_by("waktu_expired", "DESC");
                 $ambilDataTerakhir     = $this->m_data->limitOffset(1, NULL);
                 $ambilDataTerakhir     = $this->m_data->getData("permintaan_user")->row();
+
+                $ambilDataTerakhir->kode_inst = (string) gobang()->kode_inst;
+
                 $this->response(array(
                     "status"        => true,
                     "respon_code"   => REST_Controller::HTTP_CREATED,
                     "respon_mess"   => "Berhasil melakukan permintaan, silahkan lakukan pembayaran",
                     "data"          => $ambilDataTerakhir
-                ), REST_Controller::HTTP_CREATED);
+                ), REST_Controller::HTTP_OK);
             } else {
                 $this->response(array(
                     "status"        => true,
                     "respon_code"   => REST_Controller::HTTP_BAD_REQUEST,
                     "respon_mess"   => $this->m_data->getError(),
                     "data"          => NULL
-                ), REST_Controller::HTTP_BAD_REQUEST);
+                ), REST_Controller::HTTP_OK);
             }
         } else {
             //DATA NOT FOUND
@@ -100,76 +109,75 @@ class Request extends REST_Controller
                 "respon_code"   => REST_Controller::HTTP_NOT_FOUND,
                 "respon_mess"   => "Nomer Registrasi Tilang Tidak ditemukan!",
                 "data"          => NULL
-            ), REST_Controller::HTTP_NOT_FOUND);
+            ), REST_Controller::HTTP_OK);
         }
     }
 
     public function cek_data_post()
     {
         $no_reg_tilang  = $this->input->post('no_reg_tilang');
-        $cekData        = $this->m_data->getWhere("no_reg_tilang", $no_reg_tilang);
+        $cekData        = $this->m_data->getWhere("LOWER(no_reg_tilang)", strtolower($no_reg_tilang));
         $cekData        = $this->m_data->getData("daftar_terpidana")->row();
+
         if ($cekData) {
-            if ($cekData->posisi !== "selesai") {
-                $cekRequest     = $this->m_data->getWhere("no_reg_tilang", $cekData->no_reg_tilang);
-                $cekRequest     = $this->m_data->order_by("waktu_expired", "DESC");
-                $cekRequest     = $this->m_data->limitOffset(1, NULL);
-                $cekRequest     = $this->m_data->getData("permintaan_user")->row();
-                if ($cekRequest) {
+            $cekRequest     = $this->m_data->getWhere("no_reg_tilang", $cekData->no_reg_tilang);
+            $cekRequest     = $this->m_data->order_by("waktu_expired", "DESC");
+            $cekRequest     = $this->m_data->limitOffset(1, NULL);
+            $cekRequest     = $this->m_data->getData("permintaan_user")->row();
+            if ($cekRequest) {
+                $cekRequest->kode_inst = (string) gobang()->kode_inst;
+                $cekBbStatus    = $this->m_data->select(array(
+                    "bb_status.*",
+                    "permintaan_user.nama_penerima",
+                    "permintaan_user.no_reg_tilang",
+                ));
+                $cekBbStatus    = $this->m_data->getJoin("permintaan_user", "bb_status.id_permintaan = permintaan_user.id_permintaan", "INNER");
+                $cekBbStatus    = $this->m_data->getWhere("bb_status.id_permintaan", $cekRequest->id_permintaan);
+                $cekBbStatus    = $this->m_data->getData("bb_status")->row();
+                if ($cekBbStatus) {
+                    //# DONE - UDAH BAYAR
+                    $this->response(array(
+                        "status"        => true,
+                        "respon_code"   => REST_Controller::HTTP_OK,
+                        "respon_mess"   => "Bukti tilang sudah di bayar, silahkan lihat status pengirimanya",
+                        "data"          => $cekBbStatus
+                    ), REST_Controller::HTTP_OK);
+                } else {
                     if ($cekRequest->waktu_expired > date("Y-m-d H:i:s")) {
-                        //CEK UDAH BAYAR BELUM - CEK DI TABLE BB_STATUS - KALO ADA BERARTI DAH BAYAR
-                        //BUTUH JOIN TABLE PERMINTAAN USER KAYANE
-                        $cekBbStatus    = $this->m_data->getWhere("id_permintaan", $cekRequest->id_permintaan);
-                        $cekBbStatus    = $this->m_data->getData("bb_status")->row();
-                        if ($cekBbStatus) {
-                            //UDAH BAYAR
-                            $this->response(array(
-                                "status"        => true,
-                                "respon_code"   => REST_Controller::HTTP_OK,
-                                "respon_mess"   => "Bukti tilang sedang kami kirim, silahkan lacak pengiriman dengan memasukan nomer resi yang sudah kami masukan",
-                                "data"          => $cekBbStatus
-                            ), REST_Controller::HTTP_OK);
-                        } else {
-                            //BELUM BAYAR
-                            $this->response(array(
-                                "status"        => true,
-                                "respon_code"   => REST_Controller::HTTP_PAYMENT_REQUIRED,
-                                "respon_mess"   => "Silahkan bayar sesuai dengan nominal sebelum batas pembayaran berakhir",
-                                "data"          => $cekRequest
-                            ), REST_Controller::HTTP_PAYMENT_REQUIRED);
-                        }
+                        # DONE - BELUM BAYAR
+                        $this->response(array(
+                            "status"        => true,
+                            "respon_code"   => REST_Controller::HTTP_PAYMENT_REQUIRED,
+                            "respon_mess"   => "Silahkan bayar sesuai dengan nominal sebelum batas pembayaran berakhir",
+                            "data"          => $cekRequest
+                        ), REST_Controller::HTTP_OK);
                     } else {
+                        # DONE - EXPIRED
                         $this->response(array(
                             "status"        => true,
                             "respon_code"   => REST_Controller::HTTP_EXPECTATION_FAILED,
                             "respon_mess"   => "Request expired, silahkan isi ulang data request pengiriman bukti tilang",
                             "data"          => $cekData
-                        ), REST_Controller::HTTP_EXPECTATION_FAILED);
+                        ), REST_Controller::HTTP_OK);
                     }
-                } else {
-                    // BELUM REQUEST - ISI DATA - PROSES CEK SELESAI
-                    $this->response(array(
-                        "status"        => true,
-                        "respon_code"   => REST_Controller::HTTP_FOUND,
-                        "respon_mess"   => "Data ditemukan, silahkan isi data request pengiriman bukti tilang",
-                        "data"          => $cekData
-                    ), REST_Controller::HTTP_FOUND);
                 }
             } else {
+                # DONE - BELUM REQUEST - ISI DATA - PROSES CEK SELESAI
                 $this->response(array(
                     "status"        => true,
-                    "respon_code"   => REST_Controller::HTTP_MOVED_PERMANENTLY,
-                    "respon_mess"   => "Barang bukti sudah di ambil atau sudah di antarkan ke alamat tujuan",
-                    "data"          => NULL
-                ), REST_Controller::HTTP_MOVED_PERMANENTLY);
+                    "respon_code"   => REST_Controller::HTTP_FOUND,
+                    "respon_mess"   => "Data ditemukan, silahkan isi data request pengiriman bukti tilang",
+                    "data"          => $cekData
+                ), REST_Controller::HTTP_OK);
             }
         } else {
+            # DONE - DATA TIDAK DITEMUKAN
             $this->response(array(
                 "status"        => true,
                 "respon_code"   => REST_Controller::HTTP_NOT_FOUND,
-                "respon_mess"   => "Data Tidak Ditemukan, silahkan periksa kembali no registrasi tilang anda atau coba lagi beberapa saat",
+                "respon_mess"   => "Data Tidak Ditemukan, silahkan periksa kembali no registrasi tilang anda atau coba beberapa saat lagi",
                 "data"          => NULL
-            ), REST_Controller::HTTP_NOT_FOUND);
+            ), REST_Controller::HTTP_OK);
         }
     }
 
@@ -185,25 +193,22 @@ class Request extends REST_Controller
         $waktu_proses   = $this->input->post('waktu_proses');
         $nopen          = $this->input->post('nopen');
         $hashing        = $this->input->post('hashing');
-        $screet_key     = $this->input->post('screet_key');
 
-        // Cek kode institusi Gobang
-        if ($kode_inst == gobang()->kode_inst) {
-            // Cek no VA 
-            $cekVA     = $this->m_data->getWhere("no_va", $nomor_va);
-            $cekVA     = $this->m_data->getData("permintaan_user")->row();
-            if ($cekVA != NULL) {
-                // Cek waktu Expired
-                if ($cekVA->waktu_expired > date("Y-m-d H:i:s")) {
-                    // Cek Hashing
-                    $rumus = base64_encode(gobang()->kode_inst . "#" . $screet_key . "#" . $nomor_va);
-                    if ($hashing == $rumus) {
-                        // Cek key di table keys
-                        $rumusExplode = explode("#", base64_decode($hashing));
-                        $cekKey     = $this->m_data->getWhere("key", $rumusExplode[1]);
-                        $cekKey     = $this->m_data->getWhere("level", 2);
-                        $cekKey     = $this->m_data->getData("keys")->row();
-                        if ($cekKey != NULL) {
+        // Cek Hashing
+        $rumus = base64_encode(gobang()->kode_inst . "#GOBANG#" . $nomor_va);
+        if ($hashing == $rumus) {
+            // Cek kode institusi Gobang
+            if ($kode_inst === gobang()->kode_inst) {
+                // Cek no VA 
+                $cekVA     = $this->m_data->getWhere("no_va", $nomor_va);
+                $cekVA     = $this->m_data->getData("permintaan_user")->row();
+                if ($cekVA != NULL) {
+                    // CEK SUDAH DI BAYAR BELUM
+                    $sudahBayar  = $this->m_data->getWhere("id_permintaan", $cekVA->id_permintaan);
+                    $sudahBayar  = $this->m_data->getData("bb_status")->row();
+                    if (!$sudahBayar) {
+                        // Cek waktu Expired
+                        if ($cekVA->waktu_expired > date("Y-m-d H:i:s")) {
                             // Semua udah benar , masukin req ke table bb_status
                             $dataInsert = array(
                                 "id_permintaan"     => $cekVA->id_permintaan,
@@ -244,13 +249,13 @@ class Request extends REST_Controller
                                     "refnumber"     => $refnumber,
                                     "waktu_proses"  => $waktu_proses,
                                     "nopen"         => $nopen
-                                ), REST_Controller::HTTP_PRECONDITION_FAILED);
+                                ), REST_Controller::HTTP_OK);
                             }
                         } else {
                             $this->response(array(
                                 "status"        => true,
-                                "respon_code"   => REST_Controller::HTTP_FORBIDDEN,
-                                "respon_mess"   => "Akses ditolak, user tidak di kenali",
+                                "respon_code"   => REST_Controller::HTTP_EXPECTATION_FAILED,
+                                "respon_mess"   => "Nomor Virtual Account expired",
                                 "nomor_va"      => $nomor_va,
                                 "kode_inst"     => $kode_inst,
                                 "channel_id"    => $channel_id,
@@ -259,13 +264,13 @@ class Request extends REST_Controller
                                 "refnumber"     => $refnumber,
                                 "waktu_proses"  => $waktu_proses,
                                 "nopen"         => $nopen
-                            ), REST_Controller::HTTP_FORBIDDEN);
+                            ), REST_Controller::HTTP_OK);
                         }
                     } else {
                         $this->response(array(
                             "status"        => true,
-                            "respon_code"   => REST_Controller::HTTP_EXPECTATION_FAILED,
-                            "respon_mess"   => "Transaksi ditolak. hash tidak dikenali",
+                            "respon_code"   => REST_Controller::HTTP_NO_CONTENT,
+                            "respon_mess"   => "Tagihan Sudah Di bayar",
                             "nomor_va"      => $nomor_va,
                             "kode_inst"     => $kode_inst,
                             "channel_id"    => $channel_id,
@@ -274,13 +279,13 @@ class Request extends REST_Controller
                             "refnumber"     => $refnumber,
                             "waktu_proses"  => $waktu_proses,
                             "nopen"         => $nopen
-                        ), REST_Controller::HTTP_EXPECTATION_FAILED);
+                        ), REST_Controller::HTTP_OK);
                     }
                 } else {
                     $this->response(array(
                         "status"        => true,
-                        "respon_code"   => REST_Controller::HTTP_EXPECTATION_FAILED,
-                        "respon_mess"   => "Nomor Virtual Account expired",
+                        "respon_code"   => REST_Controller::HTTP_NOT_FOUND,
+                        "respon_mess"   => "Nomer Virtual Account tidak ditemukan",
                         "nomor_va"      => $nomor_va,
                         "kode_inst"     => $kode_inst,
                         "channel_id"    => $channel_id,
@@ -289,13 +294,13 @@ class Request extends REST_Controller
                         "refnumber"     => $refnumber,
                         "waktu_proses"  => $waktu_proses,
                         "nopen"         => $nopen
-                    ), REST_Controller::HTTP_EXPECTATION_FAILED);
+                    ), REST_Controller::HTTP_OK);
                 }
             } else {
                 $this->response(array(
                     "status"        => true,
                     "respon_code"   => REST_Controller::HTTP_NOT_FOUND,
-                    "respon_mess"   => "Nomer Virtual Account tidak ditemukan",
+                    "respon_mess"   => "Kode institusi tidak dikenal",
                     "nomor_va"      => $nomor_va,
                     "kode_inst"     => $kode_inst,
                     "channel_id"    => $channel_id,
@@ -304,13 +309,13 @@ class Request extends REST_Controller
                     "refnumber"     => $refnumber,
                     "waktu_proses"  => $waktu_proses,
                     "nopen"         => $nopen
-                ), REST_Controller::HTTP_NOT_FOUND);
+                ), REST_Controller::HTTP_OK);
             }
         } else {
             $this->response(array(
                 "status"        => true,
-                "respon_code"   => REST_Controller::HTTP_NOT_FOUND,
-                "respon_mess"   => "Kode institusi tidak dikenal",
+                "respon_code"   => REST_Controller::HTTP_EXPECTATION_FAILED,
+                "respon_mess"   => "Transaksi ditolak. hash tidak dikenali",
                 "nomor_va"      => $nomor_va,
                 "kode_inst"     => $kode_inst,
                 "channel_id"    => $channel_id,
@@ -319,7 +324,7 @@ class Request extends REST_Controller
                 "refnumber"     => $refnumber,
                 "waktu_proses"  => $waktu_proses,
                 "nopen"         => $nopen
-            ), REST_Controller::HTTP_NOT_FOUND);
+            ), REST_Controller::HTTP_OK);
         }
     }
 
@@ -331,8 +336,12 @@ class Request extends REST_Controller
         $channel_id     = $this->input->post('channel_id');
         $waktu_proses   = $this->input->post('waktu_proses');
 
-        $cekVA          = $this->m_data->getWhere("no_va", $nomor_va);
-        $cekVA          = $this->m_data->getJoin("daftar_terpidana", "permintaan_user.no_reg_tilang = daftar_terpidana.no_reg_tilang", "INNER");
+        $cekVA          = $this->m_data->getWhere("permintaan_user.no_va", $nomor_va);
+        $cekVA          = $this->m_data->getJoin(
+            "daftar_terpidana",
+            "permintaan_user.no_reg_tilang = daftar_terpidana.no_reg_tilang",
+            "INNER"
+        );
         $cekVA          = $this->m_data->getData("permintaan_user")->row();
 
         // Cek Kode Institusi
@@ -340,7 +349,7 @@ class Request extends REST_Controller
             // Cek No VA
             if ($cekVA != NULL) {
                 // Cek waktu Expired
-                if ($cekVA->waktu_expired > date("Y-m-d H:i:s")) { 
+                if ($cekVA->waktu_expired > date("Y-m-d H:i:s")) {
                     $this->response(array(
                         "status"        => true,
                         "respon_code"   => "00",
@@ -367,7 +376,7 @@ class Request extends REST_Controller
                         "rekgiro"       => NULL,
                         "channel_id"    => $channel_id,
                         "waktu_proses"  => $waktu_proses,
-                    ), REST_Controller::HTTP_EXPECTATION_FAILED);
+                    ), REST_Controller::HTTP_OK);
                 }
             } else {
                 $this->response(array(
@@ -382,7 +391,7 @@ class Request extends REST_Controller
                     "rekgiro"       => NULL,
                     "channel_id"    => $channel_id,
                     "waktu_proses"  => $waktu_proses,
-                ), REST_Controller::HTTP_NOT_FOUND);
+                ), REST_Controller::HTTP_OK);
             }
         } else {
             $this->response(array(
@@ -397,7 +406,7 @@ class Request extends REST_Controller
                 "rekgiro"       => NULL,
                 "channel_id"    => $channel_id,
                 "waktu_proses"  => $waktu_proses,
-            ), REST_Controller::HTTP_NOT_FOUND);
+            ), REST_Controller::HTTP_OK);
         }
     }
 }
