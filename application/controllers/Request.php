@@ -13,12 +13,7 @@ class Request extends REST_Controller
         parent::__construct($config);
     }
 
-    public function hash_get($nomor_va)
-    {
-        echo base64_encode(gobang()->kode_inst . "#" . "pgm" . "#" . $nomor_va);
-    }
-
-    public function tes_koneksi_post()
+    public function tes_koneksi_get()
     {
         $this->response(array(
             "status"        => true,

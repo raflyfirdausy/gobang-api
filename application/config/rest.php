@@ -556,6 +556,7 @@ $config['check_cors'] = FALSE;
 |
 */
 $config['allowed_cors_headers'] = [
+  'Authorization',
   'Origin',
   'X-Requested-With',
   'Content-Type',
