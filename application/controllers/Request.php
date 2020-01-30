@@ -38,6 +38,7 @@ class Request extends REST_Controller
         }
     }
 
+    //add permintaan by app
     public function add_permintaan_post()
     {
         $no_reg_tilang      = $this->input->post('no_reg_tilang');
@@ -108,6 +109,7 @@ class Request extends REST_Controller
         }
     }
 
+    //cek data by app
     public function cek_data_post()
     {
         $no_reg_tilang  = $this->input->post('no_reg_tilang');
@@ -193,7 +195,7 @@ class Request extends REST_Controller
         $rumus = base64_encode(gobang()->kode_inst . "#GOBANG#" . $nomor_va);
         if ($hashing == $rumus) {
             // Cek kode institusi Gobang
-            if ($kode_inst === gobang()->kode_inst) {
+            if ($kode_inst == gobang()->kode_inst) {
                 // Cek no VA 
                 $cekVA     = $this->m_data->getWhere("no_va", $nomor_va);
                 $cekVA     = $this->m_data->getData("permintaan_user")->row();
@@ -294,7 +296,7 @@ class Request extends REST_Controller
             } else {
                 $this->response(array(
                     "status"        => true,
-                    "respon_code"   => REST_Controller::HTTP_NOT_FOUND,
+                    "respon_code"   => REST_Controller::HTTP_BAD_REQUEST,
                     "respon_mess"   => "Kode institusi tidak dikenal",
                     "nomor_va"      => $nomor_va,
                     "kode_inst"     => $kode_inst,
@@ -309,7 +311,7 @@ class Request extends REST_Controller
         } else {
             $this->response(array(
                 "status"        => true,
-                "respon_code"   => REST_Controller::HTTP_EXPECTATION_FAILED,
+                "respon_code"   => REST_Controller::HTTP_CONFLICT,
                 "respon_mess"   => "Transaksi ditolak. hash tidak dikenali",
                 "nomor_va"      => $nomor_va,
                 "kode_inst"     => $kode_inst,
@@ -351,7 +353,7 @@ class Request extends REST_Controller
                     "INNER"
                 );
                 $cekUdahBayar   = $this->m_data->getData("permintaan_user")->num_rows();
-                if($cekUdahBayar < 1){ // BELUM BAYAR
+                if ($cekUdahBayar < 1) { // BELUM BAYAR
                     // Cek waktu Expired
                     if ($cekVA->waktu_expired > date("Y-m-d H:i:s")) {
                         $this->response(array(
@@ -408,7 +410,7 @@ class Request extends REST_Controller
                         "channel_id"    => $channel_id,
                         "waktu_proses"  => $waktu_proses,
                     ), REST_Controller::HTTP_OK);
-                }                
+                }
             } else {
                 $this->response(array(
                     "status"        => true,
@@ -431,7 +433,7 @@ class Request extends REST_Controller
         } else {
             $this->response(array(
                 "status"        => true,
-                "respon_code"   => REST_Controller::HTTP_NOT_FOUND,
+                "respon_code"   => REST_Controller::HTTP_BAD_REQUEST,
                 "respon_mess"   => "Kode institusi tidak dikenali",
                 "nomor_va"      => $nomor_va,
                 "denda_tilang"  => 0,
@@ -445,6 +447,370 @@ class Request extends REST_Controller
                 "nomer_hp"      => NULL,
                 "channel_id"    => $channel_id,
                 "waktu_proses"  => $waktu_proses,
+            ), REST_Controller::HTTP_OK);
+        }
+    }
+
+    //get data from teller | digunakan buat inquiry (info) dan payment direct dari teller
+    public function get_data_tilang($dataRequest = NULL)
+    {
+        $no_reg_tilang  = $dataRequest['no_reg_tilang'];
+
+        $cekData        = $this->m_data->select(array(
+            "no_reg_tilang",
+            "nama_terpidana",
+            "alamat_terpidana",
+            "nomor_briva",
+            "tgl_putusan",
+            "(denda + biaya_perkara) as denda_tilang"
+        ));
+        $cekData        = $this->m_data->getWhere("LOWER(no_reg_tilang)", strtolower($no_reg_tilang));
+        $cekData        = $this->m_data->getData("daftar_terpidana")->row();
+
+        if ($dataRequest['kode_inst'] == gobang()->kode_inst) {
+            if ($cekData) { //DATA KETEMU
+                $cekUdahBayar   = $this->m_data->getWhere(
+                    "permintaan_user.no_reg_tilang",
+                    $cekData->no_reg_tilang
+                );
+                $cekUdahBayar   = $this->m_data->getJoin(
+                    "bb_status",
+                    "permintaan_user.id_permintaan = bb_status.id_permintaan",
+                    "INNER"
+                );
+                $cekUdahBayar   = $this->m_data->getData("permintaan_user")->num_rows();
+                if ($cekUdahBayar < 1) {  // BELUM DI BAYAR
+                    return array(
+                        "status"            => true,
+                        "respon_code"       => gobang()->code_sukses,
+                        "respon_mess"       => "No Reg Tilang ($no_reg_tilang) Ditemukan",
+                        "no_reg_tilang"     => $no_reg_tilang,
+                        "nomor_va"          => NULL,
+                        "denda_tilang"      => (int) $cekData->denda_tilang,
+                        "biaya_kirim"       => NULL,
+                        "nominal"           => (int) $cekData->denda_tilang,
+                        "admin"             => (int) gobang()->nominal_gobang,
+                        "nama"              => NULL,
+                        "info"              => "Pembayaran Gobang|" . $cekData->no_reg_tilang . "|" . $cekData->nama_terpidana,
+                        "alamat"            => NULL,
+                        "nomer_hp"          => NULL,
+                        "rekgiro"           => NULL,
+                        "channel_id"        => $dataRequest['channel_id'],
+                        "waktu_proses"      => $dataRequest['waktu_proses'],
+                        "nama_terpidana"    => $cekData->nama_terpidana,
+                        "alamat_terpidana"  => $cekData->alamat_terpidana,
+                        "nomor_briva"       => $cekData->nomor_briva,
+                        "tgl_putusan"       => $cekData->tgl_putusan,
+                    );
+                } else { // SUDAH DI BAYAR
+                    return array(
+                        "status"            => true,
+                        "respon_code"       => REST_Controller::HTTP_ALREADY_REPORTED,
+                        "respon_mess"       => "No Reg Tilang ($no_reg_tilang) Sudah Di Bayar",
+                        "no_reg_tilang"     => $no_reg_tilang,
+                        "nomor_va"          => NULL,
+                        "denda_tilang"      => (int) $cekData->denda_tilang,
+                        "biaya_kirim"       => NULL,
+                        "nominal"           => (int) $cekData->denda_tilang,
+                        "admin"             => (int) gobang()->nominal_gobang,
+                        "nama"              => NULL,
+                        "info"              => "Pembayaran Gobang|" . $cekData->no_reg_tilang . "|" . $cekData->nama_terpidana,
+                        "alamat"            => NULL,
+                        "nomer_hp"          => NULL,
+                        "rekgiro"           => NULL,
+                        "channel_id"        => $dataRequest['channel_id'],
+                        "waktu_proses"      => $dataRequest['waktu_proses'],
+                        "nama_terpidana"    => $cekData->nama_terpidana,
+                        "alamat_terpidana"  => $cekData->alamat_terpidana,
+                        "nomor_briva"       => $cekData->nomor_briva,
+                        "tgl_putusan"       => $cekData->tgl_putusan,
+                    );
+                }
+            } else { //DATA TIDAK DITEMUKAN
+                return array(
+                    "status"            => true,
+                    "respon_code"       => REST_Controller::HTTP_NOT_FOUND,
+                    "respon_mess"       => "No Reg Tilang ($no_reg_tilang) Tidak Ditemukan",
+                    "no_reg_tilang"     => $no_reg_tilang,
+                    "nomor_va"          => NULL,
+                    "denda_tilang"      => NULL,
+                    "biaya_kirim"       => NULL,
+                    "nominal"           => NULL,
+                    "admin"             => NULL,
+                    "nama"              => NULL,
+                    "info"              => "No Reg Tilang ($no_reg_tilang) Tidak Ditemukan",
+                    "alamat"            => NULL,
+                    "nomer_hp"          => NULL,
+                    "rekgiro"           => NULL,
+                    "channel_id"        => $dataRequest['channel_id'],
+                    "waktu_proses"      => $dataRequest['waktu_proses'],
+                    "nama_terpidana"    => NULL,
+                    "alamat_terpidana"  => NULL,
+                    "nomor_briva"       => NULL,
+                    "tgl_putusan"       => NULL,
+                );
+            }
+        } else {
+            return array(
+                "status"            => true,
+                "respon_code"       => REST_Controller::HTTP_BAD_REQUEST,
+                "respon_mess"       => "Kode institusi tidak dikenali",
+                "no_reg_tilang"     => $no_reg_tilang,
+                "nomor_va"          => NULL,
+                "denda_tilang"      => NULL,
+                "biaya_kirim"       => NULL,
+                "nominal"           => NULL,
+                "admin"             => NULL,
+                "nama"              => NULL,
+                "info"              => "Kode institusi tidak dikenali",
+                "alamat"            => NULL,
+                "nomer_hp"          => NULL,
+                "rekgiro"           => NULL,
+                "channel_id"        => $dataRequest['channel_id'],
+                "waktu_proses"      => $dataRequest['waktu_proses'],
+                "nama_terpidana"    => NULL,
+                "alamat_terpidana"  => NULL,
+                "nomor_briva"       => NULL,
+                "tgl_putusan"       => NULL,
+            );
+        }
+    }
+
+    //get data untuk teller
+    public function vasbupos_info_post()
+    {
+        $no_reg_tilang  = $this->input->post('no_reg_tilang');
+        $kode_inst      = $this->input->post('kode_inst');
+        $channel_id     = $this->input->post('channel_id');
+        $waktu_proses   = $this->input->post('waktu_proses');
+
+        $dataRequest    = array(
+            "no_reg_tilang" => $no_reg_tilang,
+            "kode_inst"     => $kode_inst,
+            "channel_id"    => $channel_id,
+            "waktu_proses"  => $waktu_proses
+        );
+
+        $this->response($this->get_data_tilang($dataRequest), REST_Controller::HTTP_OK);
+    }
+
+    //get data untuk teller backup
+    public function vasbupos_info_backup_post()
+    {
+        $no_reg_tilang  = $this->input->post('no_reg_tilang');
+
+        $cekData        = $this->m_data->select(array(
+            "no_reg_tilang",
+            "nama_terpidana",
+            "alamat_terpidana",
+            "nomor_briva",
+            "tgl_putusan",
+            // "denda",
+            // "biaya_perkara",
+            "(denda + biaya_perkara) as denda_tilang"
+        ));
+        $cekData        = $this->m_data->getWhere("LOWER(no_reg_tilang)", strtolower($no_reg_tilang));
+        $cekData        = $this->m_data->getData("daftar_terpidana")->row_array();
+
+        if ($cekData) { //DATA KETEMU
+            $cekUdahBayar   = $this->m_data->getWhere(
+                "permintaan_user.no_reg_tilang",
+                $cekData['no_reg_tilang']
+            );
+            $cekUdahBayar   = $this->m_data->getJoin(
+                "bb_status",
+                "permintaan_user.id_permintaan = bb_status.id_permintaan",
+                "INNER"
+            );
+            $cekUdahBayar   = $this->m_data->getData("permintaan_user")->num_rows();
+            if ($cekUdahBayar < 1) {  // BELUM DI BAYAR
+                $cekData['biaya_admin']   = (string) gobang()->nominal_gobang;
+                $result = array_merge(
+                    array(
+                        "status"        => true,
+                        "respon_code"   => "00",
+                        "respon_mess"   => "Data Ditemukan"
+                    ),
+                    $cekData
+                );
+                $this->response($result, REST_Controller::HTTP_OK);
+            } else { // SUDAH DI BAYAR
+                $this->response(array(
+                    "status"            => true,
+                    "respon_code"       => REST_Controller::HTTP_ALREADY_REPORTED,
+                    "respon_mess"       => "No Reg Tilang ($no_reg_tilang) Sudah Di Bayar",
+                    "no_reg_tilang"     => $no_reg_tilang,
+                    "nama_terpidana"    => NULL,
+                    "alamat_terpidana"  => NULL,
+                    "nomor_briva"       => NULL,
+                    "tgl_putusan"       => NULL,
+                    "denda"             => NULL,
+                    "biaya_admin"       => NULL,
+                ), REST_Controller::HTTP_OK);
+            }
+        } else { //DATA TIDAK DITEMUKAN
+            $this->response(array(
+                "status"            => true,
+                "respon_code"       => REST_Controller::HTTP_NOT_FOUND,
+                "respon_mess"       => "No Reg Tilang ($no_reg_tilang) Tidak Ditemukan",
+                "no_reg_tilang"     => $no_reg_tilang,
+                "nama_terpidana"    => NULL,
+                "alamat_terpidana"  => NULL,
+                "nomor_briva"       => NULL,
+                "tgl_putusan"       => NULL,
+                "denda"             => NULL,
+                "biaya_admin"       => NULL,
+            ), REST_Controller::HTTP_OK);
+        }
+    }
+
+    //payment via teller
+    public function vasbupos_direct_payment_post()
+    {
+        $no_reg_tilang  = $this->input->post('no_reg_tilang');
+        $kode_inst      = $this->input->post('kode_inst');
+        $channel_id     = $this->input->post('channel_id');
+        $nominal        = $this->input->post('nominal');
+        $admin          = $this->input->post('admin');
+        $refnumber      = $this->input->post('refnumber');
+        $waktu_proses   = $this->input->post('waktu_proses');
+        $nopen          = $this->input->post('nopen');
+        $hashing        = $this->input->post('hashing'); // base64(333#GOBANG#$no_reg_tilang)    
+
+        $dataRequest    = array(
+            "no_reg_tilang" => $no_reg_tilang,
+            "kode_inst"     => $kode_inst,
+            "channel_id"    => $channel_id,
+            "waktu_proses"  => $waktu_proses
+        );
+
+        // Cek Hashing
+        $rumus = base64_encode(gobang()->kode_inst . "#GOBANG#" . $no_reg_tilang);
+        if ($hashing == $rumus) {
+            $dataTilang = $this->get_data_tilang($dataRequest);
+            if ($dataTilang['respon_code'] == gobang()->code_sukses) {
+                //INSERT DULU KE TABLE PERMINTAAN | RIBET SLUUR
+
+                //VARIABLE BUAT INSERT KE PERMINTAAN
+                $nama_penerima      = "-";
+                $alamat_antar       = "-";
+                $detail_alamat      = "";
+                $kode_pos           = "";
+                $nomer_hp           = "-";
+                $request_by         = "pos";
+                $no_va              = $this->generateVA();
+                $nominal_denda      = $dataTilang['denda_tilang'];
+                $nominal_perkara    = gobang()->nominal_perkara;
+                $nominal_pos        = 0;
+                $nominal_gobang     = $dataTilang['admin'];
+                $waktu_expired      = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s") . " +1 days"));
+
+                $dataInsert = array(
+                    "no_reg_tilang"     => $no_reg_tilang,
+                    "nama_penerima"     => $nama_penerima,
+                    "alamat_antar"      => $alamat_antar,
+                    "detail_alamat"     => $detail_alamat,
+                    "kode_pos"          => $kode_pos,
+                    "nomer_hp"          => $nomer_hp,
+                    "request_by"        => $request_by,
+                    "no_va"             => $no_va,
+                    "nominal_denda"     => $nominal_denda,
+                    "nominal_perkara"   => $nominal_perkara,
+                    "nominal_pos"       => $nominal_pos,
+                    "nominal_gobang"    => $nominal_gobang,
+                    "waktu_expired"     => $waktu_expired
+                );
+                $insert = $this->m_data->insert("permintaan_user", $dataInsert);
+
+                if ($insert > 0) {
+                    // BERHASIL INSERT KE TABLE PERMINTAAN USER
+                    $dataInsert = array(
+                        "id_permintaan"     => $insert,
+                        "req"               => 0,
+                        "channel_id"        => $channel_id,
+                        "nominal"           => $nominal,
+                        "admin"             => $admin,
+                        "refnumber"         => $refnumber,
+                        "waktu_proses"      => $waktu_proses,
+                        "nopen"             => $nopen
+                    );      
+                    $insertBBStatus = $this->m_data->insert("bb_status", $dataInsert);
+                    if ($insertBBStatus > 0) {
+                        $this->response(array(
+                            "status"        => true,
+                            "respon_code"   => gobang()->code_sukses,
+                            "respon_mess"   => "Pembayaran Gobang|" . $dataTilang['no_reg_tilang'] . "|" . $dataTilang['nama_terpidana'],
+                            "nomor_va"      => $no_va,
+                            "kode_inst"     => $kode_inst,
+                            "channel_id"    => $channel_id,
+                            "nominal"       => $nominal,
+                            "admin"         => $admin,
+                            "refnumber"     => $refnumber,
+                            "waktu_proses"  => $waktu_proses,
+                            "nopen"         => $nopen
+                        ), REST_Controller::HTTP_OK);
+                    } else {
+                        $this->response(array(
+                            "status"        => true,
+                            "respon_code"   => REST_Controller::HTTP_PRECONDITION_FAILED,
+                            "respon_mess"   => "Terjadi kesalahan pada server (GB-412)",
+                            "nomor_va"      => $no_va,
+                            "kode_inst"     => $kode_inst,
+                            "channel_id"    => $channel_id,
+                            "nominal"       => $nominal,
+                            "admin"         => $admin,
+                            "refnumber"     => $refnumber,
+                            "waktu_proses"  => $waktu_proses,
+                            "nopen"         => $nopen
+                        ), REST_Controller::HTTP_OK);
+                    }
+                } else { 
+                    // GAGAL INSERT KE TABLE PERMINTAAN USER
+                    $this->response(array(
+                        "status"        => true,
+                        "respon_code"   => REST_Controller::HTTP_BAD_GATEWAY,
+                        "respon_mess"   => "Terjadi Kesalahan Pada Server (GB-502)",
+                        "no_reg_tilang" => $no_reg_tilang,
+                        "nomor_va"      => NULL,
+                        "kode_inst"     => $kode_inst,
+                        "channel_id"    => $channel_id,
+                        "nominal"       => $nominal,
+                        "admin"         => $admin,
+                        "refnumber"     => $refnumber,
+                        "waktu_proses"  => $waktu_proses,
+                        "nopen"         => $nopen
+                    ), REST_Controller::HTTP_OK);
+                }
+            } else {
+                $this->response(array(
+                    "status"        => true,
+                    "respon_code"   => $dataTilang['respon_code'],
+                    "respon_mess"   => $dataTilang['respon_mess'],
+                    "no_reg_tilang" => $no_reg_tilang,
+                    "nomor_va"      => NULL,
+                    "kode_inst"     => $kode_inst,
+                    "channel_id"    => $channel_id,
+                    "nominal"       => $nominal,
+                    "admin"         => $admin,
+                    "refnumber"     => $refnumber,
+                    "waktu_proses"  => $waktu_proses,
+                    "nopen"         => $nopen
+                ), REST_Controller::HTTP_OK);
+            }
+        } else {
+            $this->response(array(
+                "status"        => true,
+                "respon_code"   => REST_Controller::HTTP_CONFLICT,
+                "respon_mess"   => "Transaksi ditolak. hash tidak dikenali",
+                "no_reg_tilang" => $no_reg_tilang,
+                "nomor_va"      => NULL,
+                "kode_inst"     => $kode_inst,
+                "channel_id"    => $channel_id,
+                "nominal"       => NULL,
+                "admin"         => gobang()->nominal_gobang,
+                "refnumber"     => $refnumber,
+                "waktu_proses"  => $waktu_proses,
+                "nopen"         => $nopen
             ), REST_Controller::HTTP_OK);
         }
     }
