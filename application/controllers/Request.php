@@ -20,10 +20,11 @@ class Request extends REST_Controller
             "status"        => true,
             "respon_code"   => REST_Controller::HTTP_OK,
             "respon_mess"   => "Connected",
-            "data"          => NULL
+            "data"          => ""
         ), REST_Controller::HTTP_OK);
     }
 
+    //generate nomer virtual akun PGM
     public function generateVA()
     {
         $no_va     = "";
@@ -96,7 +97,7 @@ class Request extends REST_Controller
                     "status"        => true,
                     "respon_code"   => REST_Controller::HTTP_BAD_REQUEST,
                     "respon_mess"   => $this->m_data->getError(),
-                    "data"          => NULL
+                    "data"          => ""
                 ), REST_Controller::HTTP_OK);
             }
         } else {
@@ -105,7 +106,7 @@ class Request extends REST_Controller
                 "status"        => true,
                 "respon_code"   => REST_Controller::HTTP_NOT_FOUND,
                 "respon_mess"   => "Nomer Registrasi Tilang Tidak ditemukan!",
-                "data"          => NULL
+                "data"          => ""
             ), REST_Controller::HTTP_OK);
         }
     }
@@ -174,7 +175,7 @@ class Request extends REST_Controller
                 "status"        => true,
                 "respon_code"   => REST_Controller::HTTP_NOT_FOUND,
                 "respon_mess"   => "Data Tidak Ditemukan, silahkan periksa kembali no registrasi tilang anda atau coba beberapa saat lagi",
-                "data"          => NULL
+                "data"          => ""
             ), REST_Controller::HTTP_OK);
         }
     }
@@ -374,16 +375,18 @@ class Request extends REST_Controller
                             "respon_mess"   => "Data ditemukan",
                             "nomor_va"      => $nomor_va,
                             "denda_tilang"  => (int) $cekVA->nominal_denda + (int) $cekVA->nominal_perkara,
-                            "biaya_kirim"   => (int) $cekVA->nominal_pos,
-                            "nominal"       => (int) $cekVA->nominal_denda + (int) $cekVA->nominal_perkara + (int) $cekVA->nominal_pos,
-                            "admin"         => (int) $cekVA->nominal_gobang,
+                            "biaya_kirim"   => 0,
+                            "info_tambahan" => "biaya kirim di pindah ke key admin",
+                            "nominal"       => (int) $cekVA->nominal_denda + (int) $cekVA->nominal_perkara + (int) $cekVA->nominal_pos + (int) $cekVA->nominal_gobang,                            
+                            "admin"         => (int) $cekVA->nominal_pos,
                             "nama"          => $cekVA->nama_penerima,
                             "info"          => "Pembayaran Gobang|" . $cekVA->no_reg_tilang . "|" . $cekVA->nama_terpidana,
                             "alamat"        => $cekVA->detail_alamat . " " . $cekVA->alamat_antar . " " . $cekVA->kode_pos,
                             "nomer_hp"      => $cekVA->nomer_hp,
-                            "rekgiro"       => NULL,
+                            // "rekgiro"       => "",
                             "channel_id"    => $channel_id,
                             "waktu_proses"  => $waktu_proses,
+
                         ), REST_Controller::HTTP_OK);
                     } else {
                         $this->response(array(
@@ -395,11 +398,11 @@ class Request extends REST_Controller
                             "biaya_kirim"   => 0,
                             "nominal"       => 0,
                             "admin"         => 0,
-                            "nama"          => NULL,
+                            "nama"          => "",
                             "info"          => "Nomor VA expired",
-                            "alamat"        => NULL,
-                            "nomer_hp"      => NULL,
-                            "rekgiro"       => NULL,
+                            "alamat"        => "",
+                            "nomer_hp"      => "",
+                            // "rekgiro"       => "",
                             "channel_id"    => $channel_id,
                             "waktu_proses"  => $waktu_proses,
                         ), REST_Controller::HTTP_OK);
@@ -414,11 +417,11 @@ class Request extends REST_Controller
                         "biaya_kirim"   => 0,
                         "nominal"       => 0,
                         "admin"         => 0,
-                        "nama"          => NULL,
+                        "nama"          => "",
                         "info"          => "Nomor VA sudah di bayar",
-                        "alamat"        => NULL,
-                        "nomer_hp"      => NULL,
-                        "rekgiro"       => NULL,
+                        "alamat"        => "",
+                        "nomer_hp"      => "",
+                        // "rekgiro"       => "",
                         "channel_id"    => $channel_id,
                         "waktu_proses"  => $waktu_proses,
                     ), REST_Controller::HTTP_OK);
@@ -433,11 +436,11 @@ class Request extends REST_Controller
                     "biaya_kirim"   => 0,
                     "nominal"       => 0,
                     "admin"         => 0,
-                    "nama"          => NULL,
+                    "nama"          => "",
                     "info"          => "Nomer Virtual Account tidak ditemukan",
-                    "alamat"        => NULL,
-                    "nomer_hp"      => NULL,
-                    "rekgiro"       => NULL,
+                    "alamat"        => "",
+                    "nomer_hp"      => "",
+                    // "rekgiro"       => "",
                     "channel_id"    => $channel_id,
                     "waktu_proses"  => $waktu_proses,
                 ), REST_Controller::HTTP_OK);
@@ -452,11 +455,11 @@ class Request extends REST_Controller
                 "biaya_kirim"   => 0,
                 "nominal"       => 0,
                 "admin"         => 0,
-                "nama"          => NULL,
+                "nama"          => "",
                 "info"          => "Kode institusi tidak dikenali",
-                "alamat"        => NULL,
-                "rekgiro"       => NULL,
-                "nomer_hp"      => NULL,
+                "alamat"        => "",
+                // "rekgiro"       => "",
+                "nomer_hp"      => "",
                 "channel_id"    => $channel_id,
                 "waktu_proses"  => $waktu_proses,
             ), REST_Controller::HTTP_OK);
@@ -491,52 +494,71 @@ class Request extends REST_Controller
         $cekVA          = $this->m_data->getData("permintaan_user")->row();
 
         // Cek Kode Institusi
-        // if ($kode_inst == gobang()->kode_inst || $kode_inst == "\"". gobang()->kode_inst ."\"") {
-        // Cek No VA
-        if ($cekVA != NULL) {
-            //Cek Udah Di bayar atau belum
-            $cekUdahBayar   = $this->m_data->getWhere("permintaan_user.no_reg_tilang", $cekVA->no_reg_tilang);
-            $cekUdahBayar   = $this->m_data->getJoin(
-                "bb_status",
-                "permintaan_user.id_permintaan = bb_status.id_permintaan",
-                "INNER"
-            );
-            $cekUdahBayar   = $this->m_data->getData("permintaan_user")->num_rows();
-            if ($cekUdahBayar < 1) { // BELUM BAYAR
-                // Cek waktu Expired
-                if ($cekVA->waktu_expired > date("Y-m-d H:i:s")) {
-                    $this->response(array(
-                        "status"        => true,
-                        "respon_code"   => "00",
-                        "respon_mess"   => "Data ditemukan",
-                        "nomor_va"      => $nomor_va,
-                        "denda_tilang"  => (int) $cekVA->nominal_denda + (int) $cekVA->nominal_perkara,
-                        "biaya_kirim"   => (int) $cekVA->nominal_pos,
-                        "nominal"       => (int) $cekVA->nominal_denda + (int) $cekVA->nominal_perkara + (int) $cekVA->nominal_pos,
-                        "admin"         => (int) $cekVA->nominal_gobang,
-                        "nama"          => $cekVA->nama_penerima,
-                        "info"          => "Pembayaran Gobang|" . $cekVA->no_reg_tilang . "|" . $cekVA->nama_terpidana,
-                        "alamat"        => $cekVA->detail_alamat . " " . $cekVA->alamat_antar . " " . $cekVA->kode_pos,
-                        "nomer_hp"      => $cekVA->nomer_hp,
-                        "rekgiro"       => NULL,
-                        "channel_id"    => $channel_id,
-                        "waktu_proses"  => $waktu_proses,
-                    ), REST_Controller::HTTP_OK);
+        if ($kode_inst == gobang()->kode_inst || $kode_inst == "\"" . gobang()->kode_inst . "\"") {
+            // Cek No VA
+            if ($cekVA != NULL) {
+                //Cek Udah Di bayar atau belum
+                $cekUdahBayar   = $this->m_data->getWhere("permintaan_user.no_reg_tilang", $cekVA->no_reg_tilang);
+                $cekUdahBayar   = $this->m_data->getJoin(
+                    "bb_status",
+                    "permintaan_user.id_permintaan = bb_status.id_permintaan",
+                    "INNER"
+                );
+                $cekUdahBayar   = $this->m_data->getData("permintaan_user")->num_rows();
+                if ($cekUdahBayar < 1) { // BELUM BAYAR
+                    // Cek waktu Expired
+                    if ($cekVA->waktu_expired > date("Y-m-d H:i:s")) {
+                        $this->response(array(
+                            "status"        => true,
+                            "respon_code"   => "00",
+                            "respon_mess"   => "Data ditemukan",
+                            "nomor_va"      => $nomor_va,
+                            "denda_tilang"  => (int) $cekVA->nominal_denda + (int) $cekVA->nominal_perkara,
+                            "biaya_kirim"   => (int) $cekVA->nominal_pos,
+                            "nominal"       => (int) $cekVA->nominal_denda + (int) $cekVA->nominal_perkara + (int) $cekVA->nominal_pos,
+                            "admin"         => (int) $cekVA->nominal_gobang,
+                            "nama"          => $cekVA->nama_penerima,
+                            "info"          => "Pembayaran Gobang|" . $cekVA->no_reg_tilang . "|" . $cekVA->nama_terpidana,
+                            "alamat"        => $cekVA->detail_alamat . " " . $cekVA->alamat_antar . " " . $cekVA->kode_pos,
+                            "nomer_hp"      => $cekVA->nomer_hp,
+                            // "rekgiro"       => "",
+                            "channel_id"    => $channel_id,
+                            "waktu_proses"  => $waktu_proses,
+                        ), REST_Controller::HTTP_OK);
+                    } else {
+                        $this->response(array(
+                            "status"        => true,
+                            "respon_code"   => REST_Controller::HTTP_EXPECTATION_FAILED,
+                            "respon_mess"   => "Nomor VA expired",
+                            "nomor_va"      => $nomor_va,
+                            "denda_tilang"  => 0,
+                            "biaya_kirim"   => 0,
+                            "nominal"       => 0,
+                            "admin"         => 0,
+                            "nama"          => "",
+                            "info"          => "Nomor VA expired",
+                            "alamat"        => "",
+                            "nomer_hp"      => "",
+                            // "rekgiro"       => "",
+                            "channel_id"    => $channel_id,
+                            "waktu_proses"  => $waktu_proses,
+                        ), REST_Controller::HTTP_OK);
+                    }
                 } else {
                     $this->response(array(
                         "status"        => true,
-                        "respon_code"   => REST_Controller::HTTP_EXPECTATION_FAILED,
-                        "respon_mess"   => "Nomor VA expired",
+                        "respon_code"   => REST_Controller::HTTP_ALREADY_REPORTED,
+                        "respon_mess"   => "Nomor VA sudah di bayar",
                         "nomor_va"      => $nomor_va,
                         "denda_tilang"  => 0,
                         "biaya_kirim"   => 0,
                         "nominal"       => 0,
                         "admin"         => 0,
-                        "nama"          => NULL,
-                        "info"          => "Nomor VA expired",
-                        "alamat"        => NULL,
-                        "nomer_hp"      => NULL,
-                        "rekgiro"       => NULL,
+                        "nama"          => "",
+                        "info"          => "Nomor VA sudah di bayar",
+                        "alamat"        => "",
+                        "nomer_hp"      => "",
+                        // "rekgiro"       => "",
                         "channel_id"    => $channel_id,
                         "waktu_proses"  => $waktu_proses,
                     ), REST_Controller::HTTP_OK);
@@ -544,18 +566,18 @@ class Request extends REST_Controller
             } else {
                 $this->response(array(
                     "status"        => true,
-                    "respon_code"   => REST_Controller::HTTP_ALREADY_REPORTED,
-                    "respon_mess"   => "Nomor VA sudah di bayar",
+                    "respon_code"   => REST_Controller::HTTP_NOT_FOUND,
+                    "respon_mess"   => "Nomer Virtual Account tidak ditemukan",
                     "nomor_va"      => $nomor_va,
                     "denda_tilang"  => 0,
                     "biaya_kirim"   => 0,
                     "nominal"       => 0,
                     "admin"         => 0,
-                    "nama"          => NULL,
-                    "info"          => "Nomor VA sudah di bayar",
-                    "alamat"        => NULL,
-                    "nomer_hp"      => NULL,
-                    "rekgiro"       => NULL,
+                    "nama"          => "",
+                    "info"          => "Nomer Virtual Account tidak ditemukan",
+                    "alamat"        => "",
+                    "nomer_hp"      => "",
+                    // "rekgiro"       => "",
                     "channel_id"    => $channel_id,
                     "waktu_proses"  => $waktu_proses,
                 ), REST_Controller::HTTP_OK);
@@ -563,41 +585,22 @@ class Request extends REST_Controller
         } else {
             $this->response(array(
                 "status"        => true,
-                "respon_code"   => REST_Controller::HTTP_NOT_FOUND,
-                "respon_mess"   => "Nomer Virtual Account tidak ditemukan",
+                "respon_code"   => REST_Controller::HTTP_BAD_REQUEST,
+                "respon_mess"   => "Transaksi Di Tolak ! Kode Institusi Tidak Dikenal",
                 "nomor_va"      => $nomor_va,
                 "denda_tilang"  => 0,
                 "biaya_kirim"   => 0,
                 "nominal"       => 0,
                 "admin"         => 0,
-                "nama"          => NULL,
-                "info"          => "Nomer Virtual Account tidak ditemukan",
-                "alamat"        => NULL,
-                "nomer_hp"      => NULL,
-                "rekgiro"       => NULL,
+                "nama"          => "",
+                "info"          => "Kode institusi tidak dikenali",
+                "alamat"        => "",
+                "rekgiro"       => "",
+                "nomer_hp"      => "",
                 "channel_id"    => $channel_id,
                 "waktu_proses"  => $waktu_proses,
             ), REST_Controller::HTTP_OK);
         }
-        // } else {
-        //     $this->response(array(
-        //         "status"        => true,
-        //         "respon_code"   => REST_Controller::HTTP_BAD_REQUEST,
-        //         "respon_mess"   => "Transaksi Di Tolak ! Kode Institusi Tidak Dikenal",
-        //         "nomor_va"      => $nomor_va,
-        //         "denda_tilang"  => 0,
-        //         "biaya_kirim"   => 0,
-        //         "nominal"       => 0,
-        //         "admin"         => 0,
-        //         "nama"          => NULL,
-        //         "info"          => "Kode institusi tidak dikenali",
-        //         "alamat"        => NULL,
-        //         "rekgiro"       => NULL,
-        //         "nomer_hp"      => NULL,
-        //         "channel_id"    => $channel_id,
-        //         "waktu_proses"  => $waktu_proses,
-        //     ), REST_Controller::HTTP_OK);
-        // }
     }
 
     //get data from teller | digunakan buat inquiry (info) dan payment direct dari teller
@@ -634,16 +637,16 @@ class Request extends REST_Controller
                         "respon_code"       => gobang()->code_sukses,
                         "respon_mess"       => "No Reg Tilang ($no_reg_tilang) Ditemukan",
                         "no_reg_tilang"     => $no_reg_tilang,
-                        "nomor_va"          => NULL,
+                        "nomor_va"          => "",
                         "denda_tilang"      => (int) $cekData->denda_tilang,
-                        "biaya_kirim"       => NULL,
+                        "biaya_kirim"       => "",
                         "nominal"           => (int) $cekData->denda_tilang,
                         "admin"             => (int) gobang()->nominal_gobang,
-                        "nama"              => NULL,
+                        "nama"              => "",
                         "info"              => "Pembayaran Gobang|" . $cekData->no_reg_tilang . "|" . $cekData->nama_terpidana,
-                        "alamat"            => NULL,
-                        "nomer_hp"          => NULL,
-                        "rekgiro"           => NULL,
+                        "alamat"            => "",
+                        "nomer_hp"          => "",
+                        // "rekgiro"           => "",
                         "channel_id"        => $dataRequest['channel_id'],
                         "waktu_proses"      => $dataRequest['waktu_proses'],
                         "nama_terpidana"    => $cekData->nama_terpidana,
@@ -657,16 +660,16 @@ class Request extends REST_Controller
                         "respon_code"       => REST_Controller::HTTP_ALREADY_REPORTED,
                         "respon_mess"       => "No Reg Tilang ($no_reg_tilang) Sudah Di Bayar",
                         "no_reg_tilang"     => $no_reg_tilang,
-                        "nomor_va"          => NULL,
+                        "nomor_va"          => "",
                         "denda_tilang"      => (int) $cekData->denda_tilang,
-                        "biaya_kirim"       => NULL,
+                        "biaya_kirim"       => "",
                         "nominal"           => (int) $cekData->denda_tilang,
                         "admin"             => (int) gobang()->nominal_gobang,
-                        "nama"              => NULL,
+                        "nama"              => "",
                         "info"              => "Pembayaran Gobang|" . $cekData->no_reg_tilang . "|" . $cekData->nama_terpidana,
-                        "alamat"            => NULL,
-                        "nomer_hp"          => NULL,
-                        "rekgiro"           => NULL,
+                        "alamat"            => "",
+                        "nomer_hp"          => "",
+                        // "rekgiro"           => "",
                         "channel_id"        => $dataRequest['channel_id'],
                         "waktu_proses"      => $dataRequest['waktu_proses'],
                         "nama_terpidana"    => $cekData->nama_terpidana,
@@ -681,22 +684,22 @@ class Request extends REST_Controller
                     "respon_code"       => REST_Controller::HTTP_NOT_FOUND,
                     "respon_mess"       => "No Reg Tilang ($no_reg_tilang) Tidak Ditemukan",
                     "no_reg_tilang"     => $no_reg_tilang,
-                    "nomor_va"          => NULL,
-                    "denda_tilang"      => NULL,
-                    "biaya_kirim"       => NULL,
-                    "nominal"           => NULL,
-                    "admin"             => NULL,
-                    "nama"              => NULL,
+                    "nomor_va"          => "",
+                    "denda_tilang"      => "",
+                    "biaya_kirim"       => "",
+                    "nominal"           => "",
+                    "admin"             => "",
+                    "nama"              => "",
                     "info"              => "No Reg Tilang ($no_reg_tilang) Tidak Ditemukan",
-                    "alamat"            => NULL,
-                    "nomer_hp"          => NULL,
-                    "rekgiro"           => NULL,
+                    "alamat"            => "",
+                    "nomer_hp"          => "",
+                    // "rekgiro"           => "",
                     "channel_id"        => $dataRequest['channel_id'],
                     "waktu_proses"      => $dataRequest['waktu_proses'],
-                    "nama_terpidana"    => NULL,
-                    "alamat_terpidana"  => NULL,
-                    "nomor_briva"       => NULL,
-                    "tgl_putusan"       => NULL,
+                    "nama_terpidana"    => "",
+                    "alamat_terpidana"  => "",
+                    "nomor_briva"       => "",
+                    "tgl_putusan"       => "",
                 );
             }
         } else {
@@ -705,22 +708,22 @@ class Request extends REST_Controller
                 "respon_code"       => REST_Controller::HTTP_BAD_REQUEST,
                 "respon_mess"       => "Kode institusi tidak dikenali",
                 "no_reg_tilang"     => $no_reg_tilang,
-                "nomor_va"          => NULL,
-                "denda_tilang"      => NULL,
-                "biaya_kirim"       => NULL,
-                "nominal"           => NULL,
-                "admin"             => NULL,
-                "nama"              => NULL,
+                "nomor_va"          => "",
+                "denda_tilang"      => "",
+                "biaya_kirim"       => "",
+                "nominal"           => "",
+                "admin"             => "",
+                "nama"              => "",
                 "info"              => "Kode institusi tidak dikenali",
-                "alamat"            => NULL,
-                "nomer_hp"          => NULL,
-                "rekgiro"           => NULL,
+                "alamat"            => "",
+                "nomer_hp"          => "",
+                // "rekgiro"           => "",
                 "channel_id"        => $dataRequest['channel_id'],
                 "waktu_proses"      => $dataRequest['waktu_proses'],
-                "nama_terpidana"    => NULL,
-                "alamat_terpidana"  => NULL,
-                "nomor_briva"       => NULL,
-                "tgl_putusan"       => NULL,
+                "nama_terpidana"    => "",
+                "alamat_terpidana"  => "",
+                "nomor_briva"       => "",
+                "tgl_putusan"       => "",
             );
         }
     }
@@ -728,6 +731,12 @@ class Request extends REST_Controller
     //get data untuk teller
     public function vasbupos_info_post()
     {
+
+        if (empty($this->input->post())) {
+            $inputFromJson = file_get_contents('php://input');
+            $_POST = json_decode($inputFromJson, TRUE);
+        }
+
         $no_reg_tilang  = $this->input->post('no_reg_tilang');
         $kode_inst      = $this->input->post('kode_inst');
         $channel_id     = $this->input->post('channel_id');
@@ -789,12 +798,12 @@ class Request extends REST_Controller
                     "respon_code"       => REST_Controller::HTTP_ALREADY_REPORTED,
                     "respon_mess"       => "No Reg Tilang ($no_reg_tilang) Sudah Di Bayar",
                     "no_reg_tilang"     => $no_reg_tilang,
-                    "nama_terpidana"    => NULL,
-                    "alamat_terpidana"  => NULL,
-                    "nomor_briva"       => NULL,
-                    "tgl_putusan"       => NULL,
-                    "denda"             => NULL,
-                    "biaya_admin"       => NULL,
+                    "nama_terpidana"    => "",
+                    "alamat_terpidana"  => "",
+                    "nomor_briva"       => "",
+                    "tgl_putusan"       => "",
+                    "denda"             => "",
+                    "biaya_admin"       => "",
                 ), REST_Controller::HTTP_OK);
             }
         } else { //DATA TIDAK DITEMUKAN
@@ -803,12 +812,12 @@ class Request extends REST_Controller
                 "respon_code"       => REST_Controller::HTTP_NOT_FOUND,
                 "respon_mess"       => "No Reg Tilang ($no_reg_tilang) Tidak Ditemukan",
                 "no_reg_tilang"     => $no_reg_tilang,
-                "nama_terpidana"    => NULL,
-                "alamat_terpidana"  => NULL,
-                "nomor_briva"       => NULL,
-                "tgl_putusan"       => NULL,
-                "denda"             => NULL,
-                "biaya_admin"       => NULL,
+                "nama_terpidana"    => "",
+                "alamat_terpidana"  => "",
+                "nomor_briva"       => "",
+                "tgl_putusan"       => "",
+                "denda"             => "",
+                "biaya_admin"       => "",
             ), REST_Controller::HTTP_OK);
         }
     }
@@ -816,6 +825,12 @@ class Request extends REST_Controller
     //payment via teller
     public function vasbupos_direct_payment_post()
     {
+
+        if (empty($this->input->post())) {
+            $inputFromJson = file_get_contents('php://input');
+            $_POST = json_decode($inputFromJson, TRUE);
+        }
+
         $no_reg_tilang  = $this->input->post('no_reg_tilang');
         $kode_inst      = $this->input->post('kode_inst');
         $channel_id     = $this->input->post('channel_id');
@@ -920,7 +935,7 @@ class Request extends REST_Controller
                         "respon_code"   => REST_Controller::HTTP_BAD_GATEWAY,
                         "respon_mess"   => "Terjadi Kesalahan Pada Server (GB-502)",
                         "no_reg_tilang" => $no_reg_tilang,
-                        "nomor_va"      => NULL,
+                        "nomor_va"      => "",
                         "kode_inst"     => $kode_inst,
                         "channel_id"    => $channel_id,
                         "nominal"       => $nominal,
@@ -936,7 +951,7 @@ class Request extends REST_Controller
                     "respon_code"   => $dataTilang['respon_code'],
                     "respon_mess"   => $dataTilang['respon_mess'],
                     "no_reg_tilang" => $no_reg_tilang,
-                    "nomor_va"      => NULL,
+                    "nomor_va"      => "",
                     "kode_inst"     => $kode_inst,
                     "channel_id"    => $channel_id,
                     "nominal"       => $nominal,
@@ -952,10 +967,10 @@ class Request extends REST_Controller
                 "respon_code"   => REST_Controller::HTTP_CONFLICT,
                 "respon_mess"   => "Transaksi ditolak. hash tidak dikenali",
                 "no_reg_tilang" => $no_reg_tilang,
-                "nomor_va"      => NULL,
+                "nomor_va"      => "",
                 "kode_inst"     => $kode_inst,
                 "channel_id"    => $channel_id,
-                "nominal"       => NULL,
+                "nominal"       => "",
                 "admin"         => gobang()->nominal_gobang,
                 "refnumber"     => $refnumber,
                 "waktu_proses"  => $waktu_proses,
