@@ -86,6 +86,11 @@ class Request extends REST_Controller
 
                 $ambilDataTerakhir->kode_inst = (string) gobang()->kode_inst;
 
+                $ambilDataTerakhir->nama_terpidana = $cekData->nama_terpidana;
+                $ambilDataTerakhir->no_reg_tilang  = $cekData->no_reg_tilang;
+                $ambilDataTerakhir->barang_bukti   = explode("|", $cekData->barang_bukti)[1];
+                $ambilDataTerakhir->nomor_polisi   = $cekData->nomor_polisi;
+
                 $this->response(array(
                     "status"        => true,
                     "respon_code"   => REST_Controller::HTTP_CREATED,
@@ -120,7 +125,7 @@ class Request extends REST_Controller
 
         if ($cekData) {
             $cekRequest     = $this->m_data->getWhere("no_reg_tilang", $cekData->no_reg_tilang);
-            $cekRequest     = $this->m_data->order_by("waktu_expired", "DESC");
+            $cekRequest     = $this->m_data->order_by("waktu_expired", "DESC");            
             $cekRequest     = $this->m_data->limitOffset(1, NULL);
             $cekRequest     = $this->m_data->getData("permintaan_user")->row();
             if ($cekRequest) {
@@ -144,6 +149,12 @@ class Request extends REST_Controller
                 } else {
                     if ($cekRequest->waktu_expired > date("Y-m-d H:i:s")) {
                         # DONE - BELUM BAYAR
+                        # TAMBAHAN DATA BUAT DI KETERANGAN PEMBAYARAN
+                        $cekRequest->nama_terpidana = $cekData->nama_terpidana;
+                        $cekRequest->no_reg_tilang  = $cekData->no_reg_tilang;
+                        $cekRequest->barang_bukti   = explode("|", $cekData->barang_bukti)[1];
+                        $cekRequest->nomor_polisi   = $cekData->nomor_polisi;
+
                         $this->response(array(
                             "status"        => true,
                             "respon_code"   => REST_Controller::HTTP_PAYMENT_REQUIRED,
@@ -152,6 +163,8 @@ class Request extends REST_Controller
                         ), REST_Controller::HTTP_OK);
                     } else {
                         # DONE - EXPIRED
+                        //TODO : ADD KETERANGAN NOPOL SAMA BARANG BUKTI
+                        $cekData->barang_bukti   = explode("|", $cekData->barang_bukti)[1];
                         $this->response(array(
                             "status"        => true,
                             "respon_code"   => REST_Controller::HTTP_EXPECTATION_FAILED,
@@ -162,6 +175,8 @@ class Request extends REST_Controller
                 }
             } else {
                 # DONE - BELUM REQUEST - ISI DATA - PROSES CEK SELESAI
+                //TODO : ADD KETERANGAN NOPOL SAMA BARANG BUKTI
+                $cekData->barang_bukti   = explode("|", $cekData->barang_bukti)[1];
                 $this->response(array(
                     "status"        => true,
                     "respon_code"   => REST_Controller::HTTP_FOUND,
