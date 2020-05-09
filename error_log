@@ -1,0 +1,3 @@
+[31-Jan-2020 08:41:17 UTC] PHP Fatal error:  Can't use method return value in write context in /home/kejarip1/api.gobang.kejari-purwokerto.go.id/application/controllers/Request.php on line 471
+[31-Jan-2020 08:45:25 UTC] PHP Fatal error:  Can't use method return value in write context in /home/kejarip1/api.gobang.kejari-purwokerto.go.id/application/controllers/Request.php on line 334
+[31-Jan-2020 08:51:38 UTC] PHP Fatal error:  Cannot use isset() on the result of an expression (you can use "null !== expression" instead) in /home/kejarip1/api.gobang.kejari-purwokerto.go.id/application/controllers/Request.php on line 332
